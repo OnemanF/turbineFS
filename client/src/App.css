@@ -1,0 +1,167 @@
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.brand {
+    display: grid;
+    gap: 2px;
+}
+
+.brand h1 {
+    margin: 0;
+    font-size: 24px;
+    letter-spacing: 0.2px;
+}
+
+.brand .subtitle {
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.panelGrid {
+    display: grid;
+    gap: 14px;
+}
+
+.sidebarList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 10px;
+}
+
+.windmillBtn {
+    width: 100%;
+    text-align: left;
+    padding: 12px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.06);
+    cursor: pointer;
+    transition: background 160ms ease, border-color 160ms ease, transform 120ms ease;
+    color: var(--text);
+}
+
+.windmillBtn:hover {
+    background: rgba(255, 255, 255, 0.10);
+    border-color: rgba(255, 255, 255, 0.20);
+}
+
+.windmillBtn:active { transform: translateY(1px); }
+
+.windmillBtnActive {
+    border-color: rgba(79, 140, 255, 0.55);
+    background: linear-gradient(180deg, rgba(79, 140, 255, 0.18), rgba(255, 255, 255, 0.06));
+}
+
+.windmillName {
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.windmillMeta {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.split2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+@media (max-width: 980px) {
+    .split2 { grid-template-columns: 1fr; }
+}
+
+.alertItem {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.18);
+}
+
+.alertTop {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+/* Toast */
+.toastStack {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    display: grid;
+    gap: 10px;
+    z-index: 9999;
+    width: min(360px, calc(100vw - 36px));
+}
+
+.toast {
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.10);
+    backdrop-filter: blur(8px);
+    border-radius: 14px;
+    padding: 12px 14px;
+    box-shadow: var(--shadow);
+    color: var(--text);
+    font-size: 14px;
+}
+
+.toastError {
+    border-color: rgba(255, 92, 92, 0.35);
+}
+
+.centerToastOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+
+    display: grid;
+    place-items: center;
+
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(3px);
+}
+
+.centerToastCard {
+    width: min(560px, calc(100vw - 32px));
+    border-radius: 18px;
+    border: 1px solid var(--border);
+    background: rgba(15, 26, 48, 0.92);
+    box-shadow: var(--shadow);
+
+    padding: 18px 18px 14px;
+}
+
+.centerToastError {
+    border-color: rgba(255, 92, 92, 0.35);
+}
+
+.centerToastTitle {
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 0.2px;
+    margin-bottom: 8px;
+}
+
+.centerToastMessage {
+    color: var(--text);
+    opacity: 0.92;
+    line-height: 1.45;
+}
+
+.centerToastActions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 14px;
+}
