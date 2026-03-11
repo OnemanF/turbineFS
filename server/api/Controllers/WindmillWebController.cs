@@ -61,9 +61,10 @@ public sealed class WindmillWebController(
             .Take(Math.Clamp(take, 1, 1000))
             .ToListAsync());
 
-    [Authorize]
+    [Authorize(Roles = "Operator,Admin")]
     [HttpPost("{farmId}/windmills/{turbineId}/command")]
-    public async Task<IActionResult> SendCommand(string farmId, string turbineId, [FromBody] CommandRequest req)
+    [Produces("application/json")]
+    public async Task<ActionResult<object>> SendCommand(string farmId, string turbineId, [FromBody] CommandRequest req)
     {
         validator.Validate(req.Action, req.Payload);
 
@@ -71,6 +72,7 @@ public sealed class WindmillWebController(
 
         var action = new OperatorAction
         {
+            Id = Guid.NewGuid(),
             FarmId = farmId,
             WindmillId = turbineId,
             Timestamp = DateTimeOffset.UtcNow,
@@ -113,6 +115,18 @@ public sealed class WindmillWebController(
                 _ => null
             };
     }
+    
+        [HttpGet("{farmId}/windmills/{turbineId}/actions")]
+        public async Task<ActionResult<List<OperatorAction>>> GetOperatorActions(
+            string farmId,
+            string turbineId,
+            [FromQuery] int take = 200)
+            => Ok(await db.OperatorActions.AsNoTracking()
+                .Where(x => x.FarmId == farmId && x.WindmillId == turbineId)
+                .OrderByDescending(x => x.Timestamp)
+                .Take(Math.Clamp(take, 1, 1000))
+                .ToListAsync());
+    
     
     
 }

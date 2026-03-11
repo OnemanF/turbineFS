@@ -1,10 +1,13 @@
 using System.Text;
 using System.Text.Json.Serialization;
 using Api;
+using api.Etc;
+using Api.Etc;
 using Api.Services;
 using DataAccess;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Mqtt.Controllers;
@@ -22,6 +25,9 @@ var cs = new ConnectionStrings();
 builder.Configuration.GetSection(nameof(ConnectionStrings)).Bind(cs);
 builder.Services.AddSingleton(cs);
 
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(o =>
     {
@@ -34,11 +40,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ClockSkew = TimeSpan.FromSeconds(10)
         };
     });
+
 builder.Services.AddAuthorization();
+
+builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, AuthorizationExceptionHandler>();
 
 builder.Services.Configure<HostOptions>(opts => opts.ShutdownTimeout = TimeSpan.FromSeconds(0));
 
-// Redis backplane
 builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
 {
     var cfg = ConfigurationOptions.Parse(cs.Redis);
@@ -47,11 +55,9 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
 });
 builder.Services.AddRedisSseBackplane();
 
-// EF realtime + group realtime
 builder.Services.AddEfRealtime();
 builder.Services.AddGroupRealtime();
 
-// DbContext + interceptor
 builder.Services.AddDbContext<MyDbContext>((sp, conf) =>
 {
     conf.AddEfRealtimeInterceptor(sp);
@@ -60,6 +66,10 @@ builder.Services.AddDbContext<MyDbContext>((sp, conf) =>
 
 builder.Services.AddOpenApiDocument(config =>
 {
+    config.DocumentName = "v1";
+    config.Title = "TurbineFS API";
+    config.Version = "v1";
+
     config.AddSecurity("Bearer", new OpenApiSecurityScheme
     {
         Type = OpenApiSecuritySchemeType.Http,
@@ -67,22 +77,14 @@ builder.Services.AddOpenApiDocument(config =>
         BearerFormat = "JWT",
         Description = "Enter your JWT token"
     });
-    config.OperationProcessors.Add(new AspNetCoreOperationSecurityScopeProcessor("Bearer"));
-});
 
-builder.Services.AddProblemDetails(options =>
-{
-    options.CustomizeProblemDetails = ctx =>
-    {
-        var ex = ctx.HttpContext.Features.Get<IExceptionHandlerFeature>()?.Error;
-        if (ex != null) ctx.ProblemDetails.Detail = ex.Message;
-    };
+    config.OperationProcessors.Add(new AspNetCoreOperationSecurityScopeProcessor("Bearer"));
 });
 
 builder.Services.AddSingleton<JwtService>();
 builder.Services.AddSingleton<ICommandValidationService, CommandValidationService>();
 builder.Services.AddScoped<Seeder>();
-builder.Services.AddHostedService<Api.Services.MqttConnectorHostedService>(); 
+builder.Services.AddHostedService<MqttConnectorHostedService>();
 
 builder.Services.AddMqttControllers();
 
@@ -98,8 +100,18 @@ builder.Services.AddCors();
 var app = builder.Build();
 
 app.UseExceptionHandler();
-app.UseOpenApi();
-app.UseSwaggerUi();
+
+app.UseOpenApi(settings =>
+{
+    settings.Path = "/openapi/{documentName}.json";
+});
+app.UseSwaggerUi(settings =>
+{
+    settings.Path = "/swagger";
+    settings.DocumentPath = "/openapi/{documentName}.json";
+});
+
+await app.GenerateApiClientsFromOpenApi("/../../client/src/generated-ts-client.ts");
 
 app.UseCors(c => c.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin().SetIsOriginAllowed(_ => true));
 

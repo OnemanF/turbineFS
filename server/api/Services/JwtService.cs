@@ -7,7 +7,7 @@ namespace Api.Services;
 
 public sealed class JwtService(ConnectionStrings cfg)
 {
-    public string IssueToken(string userId, string nickname, TimeSpan? lifetime = null)
+    public string IssueToken(string userId, string nickname, string role, TimeSpan? lifetime = null)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(cfg.Secret));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -19,6 +19,7 @@ public sealed class JwtService(ConnectionStrings cfg)
         {
             new Claim(ClaimTypes.NameIdentifier, userId),
             new Claim(ClaimTypes.Name, nickname),
+            new Claim(ClaimTypes.Role, role),
         };
 
         var token = new JwtSecurityToken(
