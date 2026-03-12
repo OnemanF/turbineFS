@@ -27,25 +27,24 @@ export function useFarmRealtime(farmId: string): UseFarmRealtimeResult {
     const [error, setError] = useState<string | null>(null);
 
     const esRef = useRef<EventSource | null>(null);
+    const activeGroupRef = useRef<string | null>(null);
 
     useEffect(() => {
         if (!farmId.trim()) return;
+        
+        if (esRef.current) {
+            try { esRef.current.close(); } catch {}
+            esRef.current = null;
+        }
+        activeGroupRef.current = null;
 
         setConnected(false);
         setConnectionId(null);
         setGroup(null);
         setError(null);
 
-        const es = new EventSource(`${BASE_URL}/api/farms/sse`, { withCredentials: false });
+        const es = new EventSource(`${BASE_URL}/api/farms/sse`);
         esRef.current = es;
-
-        const cleanup = () => {
-            try {
-                es.close();
-            } catch {
-            }
-            esRef.current = null;
-        };
 
         const onConnected = async (cid: string) => {
             setConnected(true);
@@ -61,55 +60,39 @@ export function useFarmRealtime(farmId: string): UseFarmRealtimeResult {
 
                 if (!g) return;
                 
-                const onGroupEvent = (evt: MessageEvent) => {
-                    const payload = tryParseJson<FarmRealtimePayload>(evt.data);
-                    if (payload) setData(payload);
-                };
+                if (activeGroupRef.current) {
+                    es.removeEventListener(activeGroupRef.current, onGroupEvent as any);
+                }
+                activeGroupRef.current = g;
 
-                es.addEventListener(g, onGroupEvent);
-                
-                es.onmessage = (evt) => {
-                    const raw = tryParseJson<any>(evt.data);
-                    if (!raw) return;
-
-                    if (raw?.telemetry || raw?.alerts) {
-                        setData(raw as FarmRealtimePayload);
-                        return;
-                    }
-
-                    if (raw?.group === g && (raw?.data?.telemetry || raw?.data?.alerts)) {
-                        setData(raw.data as FarmRealtimePayload);
-                    }
-                };
-                
-                return () => {
-                    es.removeEventListener(g, onGroupEvent as any);
-                };
+                es.addEventListener(g, onGroupEvent as any);
             } catch (e: any) {
                 setError(e?.message ?? "Failed to subscribe realtime");
             }
         };
-        
+
         const onConnectedEvent = (evt: MessageEvent) => {
             const msg = tryParseJson<{ connectionId?: string }>(evt.data);
-            const cid = msg?.connectionId;
-            if (cid) onConnected(cid);
+            if (msg?.connectionId) void onConnected(msg.connectionId);
         };
 
-        es.addEventListener("connected", onConnectedEvent);
-        
-        es.onmessage = (evt) => {
-            const msg = tryParseJson<{ connectionId?: string }>(evt.data);
-            const cid = msg?.connectionId;
-            if (cid) onConnected(cid);
+        const onGroupEvent = (evt: MessageEvent) => {
+            const payload = tryParseJson<FarmRealtimePayload>(evt.data);
+            if (payload) setData(payload);
         };
+
+        es.addEventListener("connected", onConnectedEvent as any);
 
         es.onerror = () => {
             setError("SSE connection error");
             setConnected(false);
         };
 
-        return cleanup;
+        return () => {
+            try { es.close(); } catch {}
+            esRef.current = null;
+            activeGroupRef.current = null;
+        };
     }, [farmId]);
 
     return { connected, connectionId, group, data, error };

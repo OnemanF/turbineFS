@@ -1,13 +1,12 @@
-# fly.toml app configuration file generated for turbinefs-api on 2026-03-09T14:04:59+01:00
+# fly.toml app configuration file generated for turbinecorporate on 2026-03-11T20:54:18+01:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'turbinefs-api'
+app = 'turbinecorporate'
 primary_region = 'fra'
 
 [build]
-dockerfile = "Dockerfile"
 
 [http_service]
   internal_port = 8080

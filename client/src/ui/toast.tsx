@@ -1,4 +1,4 @@
-﻿import { createContext, useCallback, useContext, useMemo, useState } from "react";
+﻿import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { setToast } from "./toastBridge";
 
 type ToastKind = "info" | "error";
@@ -14,16 +14,13 @@ const ToastContext = createContext<ToastApi | null>(null);
 export function ToastProvider({ children }: { children: React.ReactNode }) {
     const [toast, setToastState] = useState<ToastState>({ open: false, message: "", kind: "error" });
 
-    const close = useCallback(() => {
-        setToastState((t) => ({ ...t, open: false }));
-    }, []);
+    const close = useCallback(() => setToastState((t) => ({ ...t, open: false })), []);
 
     const push = useCallback((message: string, kind: ToastKind = "error") => {
         setToastState({ open: true, message, kind });
-        
         window.setTimeout(() => {
             setToastState((t) => (t.open && t.message === message ? { ...t, open: false } : t));
-        }, 4000);
+        }, 4500);
     }, []);
     
     setToast((msg) => push(msg, "error"));

@@ -63,11 +63,10 @@ public sealed class WindmillWebController(
 
     [Authorize(Roles = "Operator,Admin")]
     [HttpPost("{farmId}/windmills/{turbineId}/command")]
-    [Produces("application/json")]
-    public async Task<ActionResult<object>> SendCommand(string farmId, string turbineId, [FromBody] CommandRequest req)
+    public async Task<IActionResult> SendCommand(string farmId, string turbineId, [FromBody] CommandRequest req)
     {
         validator.Validate(req.Action, req.Payload);
-
+        
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "unknown";
 
         var action = new OperatorAction
@@ -83,12 +82,12 @@ public sealed class WindmillWebController(
 
         db.OperatorActions.Add(action);
         await db.SaveChangesAsync();
-
+        
         var topic = $"farm/{farmId}/windmill/{turbineId}/command";
         var message = MergeFlatJson(req.Action, req.Payload);
         await mqtt.PublishAsync(topic, message);
-
-        return Accepted(new { action.Id, action.Timestamp });
+        
+        return NoContent();
     }
 
     private static string MergeFlatJson(string action, JsonElement payload)
@@ -115,18 +114,16 @@ public sealed class WindmillWebController(
                 _ => null
             };
     }
-    
-        [HttpGet("{farmId}/windmills/{turbineId}/actions")]
-        public async Task<ActionResult<List<OperatorAction>>> GetOperatorActions(
-            string farmId,
-            string turbineId,
-            [FromQuery] int take = 200)
-            => Ok(await db.OperatorActions.AsNoTracking()
-                .Where(x => x.FarmId == farmId && x.WindmillId == turbineId)
-                .OrderByDescending(x => x.Timestamp)
-                .Take(Math.Clamp(take, 1, 1000))
-                .ToListAsync());
-    
-    
-    
+
+    [Authorize]
+    [HttpGet("{farmId}/windmills/{turbineId}/actions")]
+    public async Task<ActionResult<List<OperatorAction>>> GetOperatorActions(
+        string farmId,
+        string turbineId,
+        [FromQuery] int take = 200)
+        => Ok(await db.OperatorActions.AsNoTracking()
+            .Where(x => x.FarmId == farmId && x.WindmillId == turbineId)
+            .OrderByDescending(x => x.Timestamp)
+            .Take(Math.Clamp(take, 1, 1000))
+            .ToListAsync());
 }

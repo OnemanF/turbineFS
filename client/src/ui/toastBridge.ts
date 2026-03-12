@@ -1,11 +1,9 @@
-﻿export type ToastFn = (msg: string) => void;
+﻿let toastFn: ((msg: string) => void) | null = null;
 
-declare global {
-    interface Window {
-        __toast?: ToastFn;
-    }
+export function setToast(fn: (msg: string) => void) {
+    toastFn = fn;
 }
 
-export function setToast(fn: ToastFn) {
-    window.__toast = fn;
+export function showToast(msg: string) {
+    toastFn?.(msg);
 }

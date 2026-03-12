@@ -22,6 +22,8 @@ public sealed class RealtimeSubscriptionsController(
     MyDbContext db
 ) : ControllerBase
 {
+    private static readonly TimeSpan TelemetryWindow = TimeSpan.FromMinutes(30);
+
     [HttpGet("farm/{farmId}/listen")]
     public async Task<RealtimeListenResponse<FarmRealtimePayload>> ListenFarm(
         string farmId,
@@ -34,47 +36,15 @@ public sealed class RealtimeSubscriptionsController(
             connectionId,
             group,
             criteria: snapshot => snapshot.HasChanges<WindmillTelemetry>() || snapshot.HasChanges<Alert>(),
-            query: async ctx =>
-            {
-                var telemetry = await ctx.Telemetry.AsNoTracking()
-                    .Where(x => x.FarmId == farmId)
-                    .OrderByDescending(x => x.Timestamp)
-                    .Take(200)
-                    .ToListAsync();
+            query: async ctx => await QueryFarmAsync(ctx, farmId));
 
-                var alerts = await ctx.Alerts.AsNoTracking()
-                    .Where(x => x.FarmId == farmId)
-                    .OrderByDescending(x => x.Timestamp)
-                    .Take(50)
-                    .ToListAsync();
+        var initial = await QueryFarmAsync(db, farmId);
+        
+        await backplane.Clients.SendToClientAsync(connectionId, initial);
 
-                telemetry.Reverse();
-                alerts.Reverse();
-
-                return new FarmRealtimePayload(telemetry, alerts);
-            });
-
-        var initTelemetry = await db.Telemetry.AsNoTracking()
-            .Where(x => x.FarmId == farmId)
-            .OrderByDescending(x => x.Timestamp)
-            .Take(200)
-            .ToListAsync();
-
-        var initAlerts = await db.Alerts.AsNoTracking()
-            .Where(x => x.FarmId == farmId)
-            .OrderByDescending(x => x.Timestamp)
-            .Take(50)
-            .ToListAsync();
-
-        initTelemetry.Reverse();
-        initAlerts.Reverse();
-
-        var initial = new FarmRealtimePayload(initTelemetry, initAlerts);
-
-        await backplane.Clients.SendToGroupAsync(group, initial);
         return new RealtimeListenResponse<FarmRealtimePayload>(group, initial);
     }
-    
+
     [HttpGet("farm/{farmId}/turbine/{turbineId}/listen")]
     public async Task<RealtimeListenResponse<FarmRealtimePayload>> ListenTurbine(
         string farmId,
@@ -88,44 +58,56 @@ public sealed class RealtimeSubscriptionsController(
             connectionId,
             group,
             criteria: snapshot => snapshot.HasChanges<WindmillTelemetry>() || snapshot.HasChanges<Alert>(),
-            query: async ctx =>
-            {
-                var telemetry = await ctx.Telemetry.AsNoTracking()
-                    .Where(x => x.FarmId == farmId && x.WindmillId == turbineId)
-                    .OrderByDescending(x => x.Timestamp)
-                    .Take(200)
-                    .ToListAsync();
+            query: async ctx => await QueryTurbineAsync(ctx, farmId, turbineId));
 
-                var alerts = await ctx.Alerts.AsNoTracking()
-                    .Where(x => x.FarmId == farmId && x.WindmillId == turbineId)
-                    .OrderByDescending(x => x.Timestamp)
-                    .Take(50)
-                    .ToListAsync();
+        var initial = await QueryTurbineAsync(db, farmId, turbineId);
 
-                telemetry.Reverse();
-                alerts.Reverse();
+        await backplane.Clients.SendToClientAsync(connectionId, initial);
 
-                return new FarmRealtimePayload(telemetry, alerts);
-            });
+        return new RealtimeListenResponse<FarmRealtimePayload>(group, initial);
+    }
 
-        var initTelemetry = await db.Telemetry.AsNoTracking()
-            .Where(x => x.FarmId == farmId && x.WindmillId == turbineId)
+    private static async Task<FarmRealtimePayload> QueryFarmAsync(MyDbContext ctx, string farmId)
+    {
+        var cutoff = DateTimeOffset.UtcNow.Subtract(TelemetryWindow);
+
+        var telemetry = await ctx.Telemetry.AsNoTracking()
+            .Where(x => x.FarmId == farmId && x.Timestamp >= cutoff)
             .OrderByDescending(x => x.Timestamp)
             .Take(200)
             .ToListAsync();
 
-        var initAlerts = await db.Alerts.AsNoTracking()
+        var alerts = await ctx.Alerts.AsNoTracking()
+            .Where(x => x.FarmId == farmId)
+            .OrderByDescending(x => x.Timestamp)
+            .Take(50)
+            .ToListAsync();
+
+        telemetry.Reverse();
+        alerts.Reverse();
+
+        return new FarmRealtimePayload(telemetry, alerts);
+    }
+
+    private static async Task<FarmRealtimePayload> QueryTurbineAsync(MyDbContext ctx, string farmId, string turbineId)
+    {
+        var cutoff = DateTimeOffset.UtcNow.Subtract(TelemetryWindow);
+
+        var telemetry = await ctx.Telemetry.AsNoTracking()
+            .Where(x => x.FarmId == farmId && x.WindmillId == turbineId && x.Timestamp >= cutoff)
+            .OrderByDescending(x => x.Timestamp)
+            .Take(200)
+            .ToListAsync();
+
+        var alerts = await ctx.Alerts.AsNoTracking()
             .Where(x => x.FarmId == farmId && x.WindmillId == turbineId)
             .OrderByDescending(x => x.Timestamp)
             .Take(50)
             .ToListAsync();
 
-        initTelemetry.Reverse();
-        initAlerts.Reverse();
+        telemetry.Reverse();
+        alerts.Reverse();
 
-        var initial = new FarmRealtimePayload(initTelemetry, initAlerts);
-
-        await backplane.Clients.SendToGroupAsync(group, initial);
-        return new RealtimeListenResponse<FarmRealtimePayload>(group, initial);
+        return new FarmRealtimePayload(telemetry, alerts);
     }
 }

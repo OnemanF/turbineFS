@@ -4,7 +4,7 @@ public sealed record WindmillTelemetryDto(
     string TurbineId,
     string TurbineName,
     string FarmId,
-    DateTimeOffset Timestamp,
+    DateTimeOffset? Timestamp, 
     double WindSpeed,
     double WindDirection,
     double AmbientTemperature,

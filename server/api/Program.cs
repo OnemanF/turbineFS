@@ -111,7 +111,10 @@ app.UseSwaggerUi(settings =>
     settings.DocumentPath = "/openapi/{documentName}.json";
 });
 
-await app.GenerateApiClientsFromOpenApi("/../../client/src/generated-ts-client.ts");
+if (app.Environment.IsDevelopment())
+{
+    await app.GenerateApiClientsFromOpenApi("/../../client/src/generated-ts-client.ts");
+}
 
 app.UseCors(c => c.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin().SetIsOriginAllowed(_ => true));
 

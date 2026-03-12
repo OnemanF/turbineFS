@@ -20,12 +20,16 @@ public sealed class WindmillMqttController(
             using var scope = scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<MyDbContext>();
 
+            var now = DateTimeOffset.UtcNow;
+
             var row = new WindmillTelemetry
             {
                 Id = Guid.NewGuid(),
                 FarmId = farmId,
                 WindmillId = turbineId,
-                Timestamp = data.Timestamp == default ? DateTimeOffset.UtcNow : data.Timestamp,
+                
+                Timestamp = now,
+
                 WindSpeed = data.WindSpeed,
                 WindDirection = data.WindDirection,
                 AmbientTemperature = data.AmbientTemperature,
@@ -48,7 +52,7 @@ public sealed class WindmillMqttController(
                     Id = Guid.NewGuid(),
                     FarmId = farmId,
                     WindmillId = turbineId,
-                    Timestamp = row.Timestamp,
+                    Timestamp = now,  
                     Severity = "warning",
                     Code = "VIBRATION_HIGH",
                     Message = $"Vibration high: {row.Vibration}"

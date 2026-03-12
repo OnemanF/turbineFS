@@ -19,7 +19,7 @@ public sealed class JwtService(ConnectionStrings cfg)
         {
             new Claim(ClaimTypes.NameIdentifier, userId),
             new Claim(ClaimTypes.Name, nickname),
-            new Claim(ClaimTypes.Role, role),
+            new Claim(ClaimTypes.Role, role), 
         };
 
         var token = new JwtSecurityToken(
